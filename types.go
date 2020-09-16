@@ -94,7 +94,7 @@ type Check struct {
 	Script                 string                `json:"script,omitempty"`
 	EnvironmentVariables   []EnvironmentVariable `json:"environmentVariables"`
 	DoubleCheck            bool                  `json:"doubleCheck"`
-	Tags                   []string              `json:"tags,omitempty"`
+	Tags                   []string              `json:"tags"`
 	SSLCheck               bool                  `json:"sslCheck"`
 	SetupSnippetID         int64                 `json:"setupSnippetId,omitempty"`
 	TearDownSnippetID      int64                 `json:"tearDownSnippetId,omitempty"`
@@ -214,7 +214,7 @@ type Group struct {
 	Name                      string                `json:"name"`
 	Activated                 bool                  `json:"activated"`
 	Muted                     bool                  `json:"muted"`
-	Tags                      []string              `json:"tags,omitempty"`
+	Tags                      []string              `json:"tags"`
 	Locations                 []string              `json:"locations"`
 	Concurrency               int                   `json:"concurrency"`
 	APICheckDefaults          APICheckDefaults      `json:"apiCheckDefaults"`
@@ -260,14 +260,12 @@ type CheckResult struct {
 }
 
 // ApiCheckResult represents an API Check result
-type ApiCheckResult struct {
-}
+type ApiCheckResult map[string]interface{}
 
 // BrowserCheckResult represents a Browser Check result
-type BrowserCheckResult struct {
-}
+type BrowserCheckResult map[string]interface{}
 
-// CheckResultsFilter represents the parameters that can be passed while 
+// CheckResultsFilter represents the parameters that can be passed while
 // getting Check Results
 type CheckResultsFilter struct {
 	Limit       int64
