@@ -519,7 +519,7 @@ func TestGetCheckResultsWithFilters(t *testing.T) {
 	t.Parallel()
 	ts := cannedResponseServer(t,
 		http.MethodGet,
-		"/v1/check-results/73d29e72-6540-4bb5-967e-e07fa2c9465e?checkType=API&from=1&hasFailures=1&limit=100&page=0&to=1000",
+		"/v1/check-results/73d29e72-6540?checkType=API&from=1&hasFailures=1&limit=100&location=us-east-1&page=1&to=1000",
 		validateEmptyBody,
 		http.StatusOK,
 		"GetCheckResults.json",
@@ -529,13 +529,14 @@ func TestGetCheckResultsWithFilters(t *testing.T) {
 	client := checkly.NewClient("dummy")
 	client.HTTPClient = ts.Client()
 	client.URL = ts.URL
-	results, err := client.GetCheckResults(wantCheckID, &checkly.CheckResultsFilter{
+	results, err := client.GetCheckResults("73d29e72-6540", &checkly.CheckResultsFilter{
 		Limit:       100,
-		Page:        0,
+		Page:        1,
 		From:        1,
 		To:          1000,
 		CheckType:   checkly.TypeAPI,
 		HasFailures: true,
+		Location:    "us-east-1",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -543,5 +544,234 @@ func TestGetCheckResultsWithFilters(t *testing.T) {
 	if len(results) != 10 {
 		t.Errorf("Expected to get 10 results got %d", len(results))
 		return
+	}
+}
+
+func TestGetCheckResultsWithFilters2(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodGet,
+		"/v1/check-results/73d29e72-6540?",
+		validateEmptyBody,
+		http.StatusOK,
+		"GetCheckResults.json",
+	)
+
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	results, err := client.GetCheckResults("73d29e72-6540", &checkly.CheckResultsFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 10 {
+		t.Errorf("Expected to get 10 results got %d", len(results))
+		return
+	}
+}
+
+var ignoreSnippetFields = cmpopts.IgnoreFields(checkly.Snippet{}, "ID")
+
+var testSnippet = checkly.Snippet{
+	ID:     1,
+	Name:   "snippet1",
+	Script: "script1",
+}
+
+func validateSnippet(t *testing.T, body []byte) {
+	var gotSnippet checkly.Snippet
+	err := json.Unmarshal(body, &gotSnippet)
+	if err != nil {
+		t.Fatalf("decoding error for data %q: %v", body, err)
+	}
+	if !cmp.Equal(testSnippet, gotSnippet) {
+		t.Error(cmp.Diff(testSnippet, gotSnippet))
+	}
+}
+
+func TestCreateSnippet(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodPost,
+		"/v1/snippets",
+		validateSnippet,
+		http.StatusCreated,
+		"CreateSnippet.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	gotSnippet, err := client.CreateSnippet(testSnippet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(testSnippet, gotSnippet, ignoreSnippetFields) {
+		t.Error(cmp.Diff(testSnippet, gotSnippet, ignoreSnippetFields))
+	}
+}
+
+func TestGetSnippet(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodGet,
+		fmt.Sprintf("/v1/snippets/%d", testSnippet.ID),
+		validateEmptyBody,
+		http.StatusOK,
+		"CreateSnippet.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	gotSnippet, err := client.GetSnippet(testSnippet.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(testSnippet, gotSnippet, ignoreSnippetFields) {
+		t.Error(cmp.Diff(testSnippet, gotSnippet, ignoreSnippetFields))
+	}
+}
+
+func TestUpdateSnippet(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodPut,
+		fmt.Sprintf("/v1/snippets/%d", testSnippet.ID),
+		validateSnippet,
+		http.StatusOK,
+		"UpdateSnippet.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	gotSnippet, err := client.UpdateSnippet(testSnippet.ID, testSnippet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(testSnippet, gotSnippet, ignoreSnippetFields) {
+		t.Error(cmp.Diff(testSnippet, gotSnippet, ignoreSnippetFields))
+	}
+}
+
+func TestDeleteSnippet(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodDelete,
+		fmt.Sprintf("/v1/snippets/%d", testSnippet.ID),
+		validateEmptyBody,
+		http.StatusNoContent,
+		"Empty.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	err := client.DeleteSnippet(testSnippet.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var testEnvVariable = checkly.EnvironmentVariable{
+	Key:   "k1",
+	Value: "v1",
+}
+
+func validateEnvVariable(t *testing.T, body []byte) {
+	var result checkly.EnvironmentVariable
+	err := json.Unmarshal(body, &result)
+	if err != nil {
+		t.Fatalf("decoding error for data %q: %v", body, err)
+	}
+	if !cmp.Equal(testEnvVariable, result) {
+		t.Error(cmp.Diff(testEnvVariable, result))
+	}
+}
+
+func TestCreateEnvironmentVariable(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodPost,
+		"/v1/variables",
+		validateEnvVariable,
+		http.StatusCreated,
+		"CreateEnvironmentVariable.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	result, err := client.CreateEnvironmentVariable(testEnvVariable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(testEnvVariable, result, nil) {
+		t.Error(cmp.Diff(testEnvVariable, result, nil))
+	}
+}
+
+func TestGetEnvironmentVariable(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodGet,
+		fmt.Sprintf("/v1/variables/%s", testEnvVariable.Key),
+		validateEmptyBody,
+		http.StatusOK,
+		"CreateEnvironmentVariable.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	result, err := client.GetEnvironmentVariable(testEnvVariable.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(testEnvVariable, result, nil) {
+		t.Error(cmp.Diff(testEnvVariable, result, nil))
+	}
+}
+
+func TestUpdateEnvironmentVariable(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodPut,
+		fmt.Sprintf("/v1/variables/%s", testEnvVariable.Key),
+		validateEnvVariable,
+		http.StatusOK,
+		"UpdateEnvironmentVariable.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	result, err := client.UpdateEnvironmentVariable(testEnvVariable.Key, testEnvVariable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(testEnvVariable, result, nil) {
+		t.Error(cmp.Diff(testEnvVariable, result, nil))
+	}
+}
+
+func TestDeleteEnvironmentVariable(t *testing.T) {
+	t.Parallel()
+	ts := cannedResponseServer(t,
+		http.MethodDelete,
+		fmt.Sprintf("/v1/variables/%s", testEnvVariable.Key),
+		validateEmptyBody,
+		http.StatusNoContent,
+		"Empty.json",
+	)
+	defer ts.Close()
+	client := checkly.NewClient("dummy")
+	client.HTTPClient = ts.Client()
+	client.URL = ts.URL
+	err := client.DeleteEnvironmentVariable(testEnvVariable.Key)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
